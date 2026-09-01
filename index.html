@@ -217,10 +217,10 @@ function renderResult(){
 <!-- ▼ 共有（全端末同期）用：Firebase 設定をここに貼ると全員に反映されます。未設定なら“端末のみ”で動きます ▼ -->
 <script type="module">
 const firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE.firebaseapp.com",
-  databaseURL: "PASTE_DATABASE_URL",   // 例: https://xxxx-default-rtdb.firebaseio.com
-  projectId: "PASTE_PROJECT_ID"
+  apiKey: "AIzaSyCZYFg2d-VRyS0FCbSa4GxVvQGUF1oGWEk",
+  authDomain: "sushiapp-7f3c3.firebaseapp.com",
+  databaseURL: "https://sushiapp-7f3c3-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "sushiapp-7f3c3"
 };
 const dot=document.getElementById('syncDot'), msg=document.getElementById('syncMsg');
 function localOnly(t){dot.className='dot off';msg.textContent=t||'端末のみ（共有オフ）';}
