@@ -92,7 +92,7 @@
       <h2>本日の魚</h2>
       <div class="frow"><label>白身</label><input id="f-白身" placeholder="例：カワハギ" autocomplete="off"></div>
       <div class="frow"><label>生ネタ</label><input id="f-生ネタ" placeholder="例：カジキ" autocomplete="off"></div>
-      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ</span></div>
+      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v3</span></div>
     </div>
     <div id="inputs"></div>
     <div class="barbtns">
@@ -115,6 +115,7 @@ const qty = {}; products.forEach(p=>qty[p]=0);
 const EDITABLE=['白身','生ネタ'];
 const fishLabels={'白身':'','生ネタ':''};
 let lastResult=null;
+const VER='v3';
 
 try{const s=JSON.parse(localStorage.getItem('sushi_qty')||'{}');
     products.forEach(p=>{if(typeof s[p]==='number')qty[p]=s[p];});}catch(e){}
@@ -130,6 +131,9 @@ function cellName(n){
 }
 function syncInputs(){EDITABLE.forEach(k=>{const el=document.getElementById('f-'+k);
   if(el&&document.activeElement!==el)el.value=fishLabels[k];});}
+function setSyncState(on){var d=document.getElementById('syncDot'),m=document.getElementById('syncMsg');if(!d)return;d.className='dot '+(on?'on':'off');m.textContent=(on?'全端末と同期中':'端末のみ')+' ・ '+VER;}
+function pingSync(){var m=document.getElementById('syncMsg');if(m)m.textContent='同期 '+new Date().toLocaleTimeString()+' ・ '+VER;}
+window.setSyncState=setSyncState;
 
 // タブ
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
@@ -164,7 +168,7 @@ function setFishLabel(k,val,fromRemote){
   if(!fromRemote&&window.pushFishLabel){try{window.pushFishLabel(k,val);}catch(e){}}
 }
 window.applyRemoteLabels=function(v){EDITABLE.forEach(k=>{fishLabels[k]=(v&&typeof v[k]==='string')?v[k]:'';});
-  saveFish(); syncInputs(); renderList(); if(lastResult)renderResult();};
+  saveFish(); syncInputs(); renderList(); if(lastResult)renderResult(); pingSync();};
 
 // 商品一覧
 function renderList(){
@@ -202,7 +206,7 @@ window.applyRemoteQty=function(obj){
   products.forEach(p=>{ const v=(typeof obj[p]==='number')?obj[p]:0; qty[p]=v;
     const el=inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]');
     if(el&&document.activeElement!==el) el.value=v; });
-  saveQty(); recomputeIfShown();
+  saveQty(); recomputeIfShown(); pingSync();
 };
 function renderResult(){
   const r=document.getElementById('result'); if(!lastResult)return;
@@ -234,7 +238,7 @@ const firebaseConfig = {
   projectId: "sushiapp-7f3c3"
 };
 const dot=document.getElementById('syncDot'), msg=document.getElementById('syncMsg');
-function localOnly(t){dot.className='dot off';msg.textContent=t||'端末のみ（共有オフ）';}
+function localOnly(t){ if(window.setSyncState)window.setSyncState(false); }
 if(!firebaseConfig.databaseURL || firebaseConfig.databaseURL.indexOf('PASTE')>-1){ localOnly(); }
 else{(async()=>{try{
   const {initializeApp}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
@@ -243,13 +247,19 @@ else{(async()=>{try{
   window.pushFishLabel=(k,v)=>set(ref(db,'labels/'+k),v);
   window.pushQty=(k,v)=>set(ref(db,'qty/'+k),v);
   window.pushAllQty=(o)=>set(ref(db,'qty'),o);
-  onValue(ref(db,'labels'),s=>{window.applyRemoteLabels(s.val()||{});dot.className='dot on';msg.textContent='全端末と同期中';},
+  onValue(ref(db,'labels'),s=>{window.applyRemoteLabels(s.val()||{}); if(window.setSyncState)window.setSyncState(true);},
     ()=>localOnly('同期エラー（端末のみ）'));
   onValue(ref(db,'qty'),s=>{window.applyRemoteQty(s.val()||{});},()=>{});
 }catch(e){localOnly('同期未接続（端末のみ）');}})();}
 </script>
 <script>
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').then(reg=>{
+    reg.addEventListener('updatefound',()=>{const nw=reg.installing; if(!nw)return;
+      nw.addEventListener('statechange',()=>{ if(nw.state==='installed' && navigator.serviceWorker.controller){ location.reload(); }});});
+  }).catch(()=>{});
+  let _r=false; navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(_r)return; _r=true; location.reload(); });
+}
 </script>
 </body>
 </html>
