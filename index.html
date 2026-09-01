@@ -92,7 +92,7 @@
       <h2>本日の魚</h2>
       <div class="frow"><label>白身</label><input id="f-白身" placeholder="例：カワハギ" autocomplete="off"></div>
       <div class="frow"><label>生ネタ</label><input id="f-生ネタ" placeholder="例：カジキ" autocomplete="off"></div>
-      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v5</span></div>
+      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v6</span></div>
     </div>
     <div id="inputs"></div>
     <div class="barbtns">
@@ -115,7 +115,7 @@ const qty = {}; products.forEach(p=>qty[p]=0);
 const EDITABLE=['白身','生ネタ'];
 const fishLabels={'白身':'','生ネタ':''};
 let lastResult=null;
-const VER='v5';
+const VER='v6';
 
 try{const s=JSON.parse(localStorage.getItem('sushi_qty')||'{}');
     products.forEach(p=>{if(typeof s[p]==='number')qty[p]=s[p];});}catch(e){}
@@ -202,9 +202,12 @@ document.getElementById('clearBtn').onclick=()=>{products.forEach(p=>qty[p]=0);
 document.getElementById('goBtn').onclick=()=>{ compute();
   document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'}); };
 window.applyRemoteQty=function(obj){
-  if(!obj) return;
+  if(!obj || Object.keys(obj).length===0){   // サーバが空 → 自端末の値を番号キーで作成（ノード再生成）
+    if(window.pushAllQty){try{const z={};products.forEach((p,i)=>z[String(i)]=qty[p]|0);window.pushAllQty(z);}catch(e){}}
+    return;
+  }
   let changed=false;
-  products.forEach((p,i)=>{                     // キーは番号。サーバに在る番号だけ反映（無いものは現状維持）
+  products.forEach((p,i)=>{                     // キーは番号。サーバに在る番号だけ反映
     const v=obj[String(i)];
     if(typeof v==='number' && qty[p]!==v){ qty[p]=v; changed=true;
       const el=inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]');
