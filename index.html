@@ -92,7 +92,7 @@
       <h2>本日の魚</h2>
       <div class="frow"><label>白身</label><input id="f-白身" placeholder="例：カワハギ" autocomplete="off"></div>
       <div class="frow"><label>生ネタ</label><input id="f-生ネタ" placeholder="例：カジキ" autocomplete="off"></div>
-      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v7</span></div>
+      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v8</span></div>
     </div>
     <div id="inputs"></div>
     <div class="barbtns">
@@ -115,7 +115,7 @@ const qty = {}; products.forEach(p=>qty[p]=0);
 const EDITABLE=['白身','生ネタ'];
 const fishLabels={'白身':'','生ネタ':''};
 let lastResult=null;
-const VER='v7';
+const VER='v8';
 
 try{const s=JSON.parse(localStorage.getItem('sushi_qty')||'{}');
     products.forEach(p=>{if(typeof s[p]==='number')qty[p]=s[p];});}catch(e){}
@@ -158,7 +158,7 @@ inputs.addEventListener('click',e=>{const b=e.target.closest('button[data-p]');i
   setQty(p,(qty[p]|0)+d,false);});
 inputs.addEventListener('input',e=>{const i=e.target.closest('input[data-p]');if(!i)return;
   const p=i.getAttribute('data-p'); let v=parseInt(String(i.value).replace(/[^0-9]/g,''),10); if(isNaN(v)||v<0)v=0;
-  qty[p]=v; saveQty(); pushQty(p); recomputeIfShown(); pingSync();});
+  qty[p]=v; saveQty(); sendQty(p); recomputeIfShown(); pingSync();});
 inputs.addEventListener('change',e=>{const i=e.target.closest('input[data-p]');if(!i)return;
   const p=i.getAttribute('data-p'); setQty(p, i.value, false);});
 
@@ -189,14 +189,14 @@ function renderList(){
 renderList();
 
 // 計算
-function pushQty(p){ if(window.pushQty){try{window.pushQty(String(products.indexOf(p)),qty[p]);}catch(e){}} }
+function sendQty(p){ if(window.pushQty){try{window.pushQty(String(products.indexOf(p)),qty[p]);}catch(e){}} }
 function setQty(p,v,fromRemote){
   v=Math.max(0, parseInt(v,10)||0);
   qty[p]=v;
   var el=inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]');
   if(el && document.activeElement!==el) el.value=v;
   saveQty();
-  if(!fromRemote){ pushQty(p); }
+  if(!fromRemote){ sendQty(p); }
   recomputeIfShown(); pingSync();
 }
 function recomputeIfShown(){ if(lastResult) compute(); }
