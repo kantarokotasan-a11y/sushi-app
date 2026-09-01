@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>寿司 製造計算</title>
+<style>
+  :root{
+    --ink:#12303f; --ink2:#3a5563; --paper:#eef2f1; --card:#ffffff;
+    --line:#d3dcd8; --take:#1f8f6a; --take-d:#166b50; --num:#d9531e;
+    --chip:#eaf1ef; --shadow:0 1px 0 rgba(18,48,63,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+    color:var(--ink); background:var(--paper); -webkit-text-size-adjust:100%;
+    line-height:1.5;
+  }
+  .tnum{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1;}
+  header{
+    position:sticky; top:0; z-index:5; background:var(--ink); color:#fff;
+    padding:14px 16px 12px;
+  }
+  header .title{font-size:19px; font-weight:800; letter-spacing:.04em;}
+  header .sub{font-size:12px; opacity:.8; margin-top:2px;}
+  .tabs{display:flex; gap:6px; margin-top:12px; background:rgba(255,255,255,.12);
+    padding:4px; border-radius:12px;}
+  .tab{flex:1; text-align:center; padding:9px 0; border-radius:9px; font-weight:700;
+    font-size:14px; color:#dfe9e6; cursor:pointer; user-select:none;}
+  .tab.on{background:#fff; color:var(--ink);}
+  main{max-width:680px; margin:0 auto; padding:14px 12px 120px;}
+  .view{display:none} .view.on{display:block}
+
+  /* 商品一覧 */
+  .prod{background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:12px 13px; margin-bottom:10px; box-shadow:var(--shadow);}
+  .prow{display:flex; align-items:center; gap:8px;}
+  .pname{font-weight:800; font-size:16px;}
+  .badge{font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:999px;
+    background:var(--chip); color:var(--ink2);}
+  .badge.kan{background:#13303f; color:#fff;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px;}
+  .chip{font-size:13px; padding:4px 9px; border-radius:8px; background:var(--chip);
+    color:var(--ink); border:1px solid var(--line);}
+  .chip b{color:var(--num); margin-left:3px; font-weight:800;}
+
+  /* 製造入力 */
+  .inrow{display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:9px 10px; margin-bottom:8px; box-shadow:var(--shadow);}
+  .inrow .l{min-width:0}
+  .inrow .pn{font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .inrow .meta{font-size:11px; color:var(--ink2); margin-top:1px;}
+  .step{display:flex; align-items:center; gap:6px; flex:none;}
+  .step button{width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:#f3f7f5; font-size:22px; font-weight:700; color:var(--ink); cursor:pointer;
+    line-height:1; display:flex; align-items:center; justify-content:center;}
+  .step button:active{background:#e6efeb}
+  .step input{width:64px; height:38px; text-align:center; font-size:18px; font-weight:800;
+    border:1px solid var(--line); border-radius:10px; color:var(--ink); background:#fff;}
+  .barbtns{display:flex; gap:10px; margin:14px 0 4px;}
+  .btn{flex:1; border:none; border-radius:12px; padding:15px 0; font-size:16px; font-weight:800;
+    cursor:pointer;}
+  .btn.go{background:var(--take); color:#fff;}
+  .btn.go:active{background:var(--take-d)}
+  .btn.clear{flex:none; padding:15px 16px; background:#fff; color:var(--ink2); border:1px solid var(--line);}
+
+  /* 結果 */
+  #result{margin-top:16px}
+  .rhead{display:flex; align-items:baseline; justify-content:space-between; margin:2px 2px 10px;}
+  .rhead .t{font-size:15px; font-weight:800;}
+  .rhead .s{font-size:12px; color:var(--ink2);}
+  .totrow{display:flex; gap:10px; margin-bottom:12px;}
+  .tot{flex:1; background:var(--ink); color:#fff; border-radius:12px; padding:10px 12px;}
+  .tot .k{font-size:11px; opacity:.8;} .tot .v{font-size:24px; font-weight:800;}
+  .tot .v small{font-size:12px; font-weight:700; opacity:.8; margin-left:2px;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:8px;}
+  .cell{background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:9px 10px; box-shadow:var(--shadow);}
+  .cell .n{font-size:12.5px; color:var(--ink2);}
+  .cell .q{font-size:26px; font-weight:800; color:var(--num); margin-top:1px;}
+  .cell .q small{font-size:12px; color:var(--ink2); font-weight:700; margin-left:2px;}
+  .sec{margin-top:18px}
+  .sec .h{font-size:14px; font-weight:800; margin:0 2px 8px;
+    padding-bottom:6px; border-bottom:2px solid var(--line);}
+  table{width:100%; border-collapse:collapse; background:var(--card);
+    border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  th,td{padding:9px 11px; font-size:14px; text-align:left; border-bottom:1px solid var(--line);}
+  th{background:#f4f7f6; color:var(--ink2); font-size:12px;}
+  td.r,th.r{text-align:right}
+  tr:last-child td{border-bottom:none}
+  td .u{color:var(--ink2); font-size:11px; margin-left:2px;}
+  .empty{color:var(--ink2); font-size:14px; padding:22px 8px; text-align:center;}
+  .foot{color:var(--ink2); font-size:11px; text-align:center; margin-top:18px;}
+</style>
+  <meta name="theme-color" content="#12303f">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="寿司製造">
+</head>
+<body>
+<header>
+  <div class="title">寿司 製造計算</div>
+  <div class="sub">製造数を入れて「使用枚数を計算」</div>
+  <div class="tabs">
+    <div class="tab on" data-v="make">製造</div>
+    <div class="tab" data-v="list">商品一覧</div>
+  </div>
+</header>
+<main>
+  <section id="view-make" class="view on">
+    <div id="inputs"></div>
+    <div class="barbtns">
+      <button class="btn clear" id="clearBtn">全部0</button>
+      <button class="btn go" id="goBtn">使用枚数を計算</button>
+    </div>
+    <div id="result"></div>
+  </section>
+  <section id="view-list" class="view">
+    <div id="prodlist"></div>
+    <div class="foot">数字は1パックあたりの使用枚数（Excelと同一データ）</div>
+  </section>
+</main>
+<script>
+const DATA = {"products": ["6貫", "10貫", "18貫", "巻と握り", "サーモンづくし", "エビづくし", "あぶり尽くし", "特上6貫", "特上8貫①", "特上8貫②", "特上10貫", "特選6貫", "特選8貫", "特選10貫①", "特選10貫②", "特選12貫", "16貫"], "neta": ["白身", "マグロ", "中とろ", "サーモン小", "サーモン大", "エビ小", "エビ大", "赤エビ", "イカ", "タコ", "玉子", "玉子カット", "アジ", "カレイ", "穴子", "細巻き", "いくら", "ウニ", "レタス巻", "真鯛", "カンパチ", "ホタテ", "ヒラメ", "かにかま", "生ネタ"], "recipe": {"6貫": {"白身": 1, "マグロ": 1, "サーモン小": 1, "エビ小": 1, "イカ": 1, "玉子": 1}, "10貫": {"白身": 1, "マグロ": 1, "アジ": 1, "サーモン小": 1, "エビ小": 1, "カレイ": 1, "イカ": 1, "穴子": 1, "玉子": 1, "細巻き": 1}, "18貫": {"白身": 2, "マグロ": 2, "サーモン大": 2, "エビ大": 2, "カレイ": 2, "イカ": 2, "タコ": 2, "いくら": 2, "玉子": 2}, "巻と握り": {"マグロ": 2, "イカ": 2, "タコ": 2, "エビ小": 2, "サーモン小": 2, "レタス巻": 5}, "サーモンづくし": {"サーモン大": 8}, "エビづくし": {"エビ小": 8}, "あぶり尽くし": {"サーモン大": 5, "エビ小": 5}, "特上6貫": {"真鯛": 1, "マグロ": 1, "カンパチ": 1, "赤エビ": 1, "ホタテ": 1, "イカ": 1}, "特上8貫①": {"カンパチ": 1, "真鯛": 1, "マグロ": 1, "ヒラメ": 1, "サーモン大": 1, "赤エビ": 1, "ホタテ": 1, "イカ": 1}, "特上8貫②": {"カンパチ": 1, "マグロ": 1, "真鯛": 1, "サーモン大": 1, "いくら": 1, "穴子": 1, "イカ": 1, "エビ大": 1}, "特上10貫": {"カンパチ": 1, "真鯛": 1, "マグロ": 1, "サーモン大": 2, "イカ": 2, "エビ大": 1, "玉子カット": 1, "ホタテ": 1}, "特選6貫": {"中とろ": 1, "カンパチ": 1, "真鯛": 1, "サーモン大": 1, "赤エビ": 1, "イカ": 1}, "特選8貫": {"中とろ": 1, "真鯛": 1, "マグロ": 1, "カンパチ": 1, "サーモン大": 1, "赤エビ": 1, "イカ": 1, "ホタテ": 1}, "特選10貫①": {"中とろ": 2, "サーモン大": 2, "カンパチ": 1, "真鯛": 1, "いくら": 1, "ウニ": 1, "赤エビ": 1, "イカ": 1}, "特選10貫②": {"中とろ": 2, "カンパチ": 1, "真鯛": 1, "マグロ": 1, "赤エビ": 1, "ホタテ": 1, "イカ": 1, "サーモン大": 1, "ヒラメ": 1}, "特選12貫": {"中とろ": 2, "マグロ": 2, "カンパチ": 1, "真鯛": 1, "サーモン大": 1, "いくら": 1, "ウニ": 1, "赤エビ": 1, "エビ大": 1, "白身": 1}, "16貫": {"サーモン小": 2, "カレイ": 2, "穴子": 2, "かにかま": 2, "生ネタ": 2, "エビ小": 2, "イカ": 2, "玉子": 2}}, "tray_of": {"6貫": "D-10", "10貫": "2-5", "18貫": "36", "巻と握り": "36", "サーモンづくし": "2-4", "エビづくし": "2-4", "あぶり尽くし": "2-5", "特上6貫": "D-10", "特上8貫①": "2-4", "特上8貫②": "2-4", "特上10貫": "2-5", "特選6貫": "D-10", "特選8貫": "2-4", "特選10貫①": "2-5", "特選10貫②": "2-5", "特選12貫": "2-6", "16貫": "28"}, "yield": {"白身": {"g": 15, "y": 0.4}, "マグロ": {"g": 15, "y": 0.7}, "中とろ": {"g": 20, "y": 0.9}, "真鯛": {"g": 15, "y": 0.35}, "カンパチ": {"g": 15, "y": 0.4}, "ヒラメ": {"g": 12, "y": 0.35}}};
+const {products, neta, recipe, tray_of} = DATA;
+const YIELD = DATA.yield;
+const netaIndex = {}; neta.forEach((n,i)=>netaIndex[n]=i);
+const kanOf = p => Object.values(recipe[p]).reduce((a,b)=>a+b,0);
+const qty = {}; products.forEach(p=>qty[p]=0);
+
+// 復元
+try{const s=JSON.parse(localStorage.getItem('sushi_qty')||'{}');
+    products.forEach(p=>{if(typeof s[p]==='number')qty[p]=s[p];});}catch(e){}
+const save=()=>{try{localStorage.setItem('sushi_qty',JSON.stringify(qty));}catch(e){}};
+
+// タブ
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');
+  const v=t.dataset.v;
+  document.getElementById('view-make').classList.toggle('on', v==='make');
+  document.getElementById('view-list').classList.toggle('on', v==='list');
+});
+
+// 製造入力
+const inputs=document.getElementById('inputs');
+products.forEach(p=>{
+  const row=document.createElement('div'); row.className='inrow';
+  row.innerHTML=`<div class="l"><div class="pn">${p}</div>
+    <div class="meta">${kanOf(p)}貫 ・ トレー ${tray_of[p]}</div></div>
+    <div class="step">
+      <button data-p="${p}" data-d="-1">−</button>
+      <input class="tnum" inputmode="numeric" data-p="${p}" value="${qty[p]}">
+      <button data-p="${p}" data-d="1">＋</button>
+    </div>`;
+  inputs.appendChild(row);
+});
+inputs.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  const p=b.dataset.p; qty[p]=Math.max(0,(qty[p]|0)+(+b.dataset.d));
+  inputs.querySelector(`input[data-p="${CSS.escape(p)}"]`).value=qty[p]; save();
+});
+inputs.addEventListener('input',e=>{
+  const i=e.target.closest('input'); if(!i)return;
+  let v=parseInt(i.value.replace(/[^0-9]/g,''),10); if(isNaN(v)||v<0)v=0;
+  qty[i.dataset.p]=v; save();
+});
+
+// 商品一覧
+const pl=document.getElementById('prodlist');
+products.forEach(p=>{
+  const chips=Object.entries(recipe[p])
+    .sort((a,b)=>netaIndex[a[0]]-netaIndex[b[0]])
+    .map(([n,c])=>`<span class="chip">${n}<b>×${c}</b></span>`).join('');
+  const d=document.createElement('div'); d.className='prod';
+  d.innerHTML=`<div class="prow"><span class="pname">${p}</span>
+     <span class="badge kan">${kanOf(p)}貫</span>
+     <span class="badge">トレー ${tray_of[p]}</span></div>
+     <div class="chips">${chips}</div>`;
+  pl.appendChild(d);
+});
+
+// 計算
+document.getElementById('clearBtn').onclick=()=>{
+  products.forEach(p=>qty[p]=0);
+  inputs.querySelectorAll('input').forEach(i=>i.value=0); save();
+  document.getElementById('result').innerHTML='';
+};
+document.getElementById('goBtn').onclick=()=>{
+  const tot={}; neta.forEach(n=>tot[n]=0);
+  let kanSum=0, packSum=0; const trays={};
+  products.forEach(p=>{
+    const q=qty[p]|0; if(!q)return; packSum+=q; kanSum+=q*kanOf(p);
+    trays[tray_of[p]]=(trays[tray_of[p]]||0)+q;
+    for(const[n,c]of Object.entries(recipe[p])) tot[n]+=c*q;
+  });
+  const r=document.getElementById('result');
+  if(packSum===0){r.innerHTML='<div class="empty">製造数を入力してから計算してください。</div>';return;}
+  const cells=neta.filter(n=>tot[n]>0).map(n=>
+    `<div class="cell"><div class="n">${n}</div><div class="q tnum">${tot[n].toLocaleString()}<small>枚</small></div></div>`).join('');
+  const trayRows=Object.keys(trays).sort().map(t=>
+    `<tr><td>${t}</td><td class="r tnum">${trays[t].toLocaleString()}<span class="u">枚</span></td></tr>`).join('');
+  const fishRows=Object.keys(YIELD).filter(n=>tot[n]>0).map(n=>{
+    const {g,y}=YIELD[n]; const kg=tot[n]*g/y/1000;
+    return `<tr><td>${n}</td><td class="r tnum">${tot[n]}<span class="u">枚</span></td>
+      <td class="r tnum">${kg.toFixed(2)}<span class="u">kg</span></td></tr>`;}).join('');
+  r.innerHTML=`
+    <div class="rhead"><div class="t">使用枚数</div><div class="s">${packSum}パック分</div></div>
+    <div class="totrow">
+      <div class="tot"><div class="k">合計枚数</div><div class="v tnum">${Object.values(tot).reduce((a,b)=>a+b,0).toLocaleString()}<small>枚</small></div></div>
+      <div class="tot"><div class="k">合計貫数</div><div class="v tnum">${kanSum.toLocaleString()}<small>貫</small></div></div>
+    </div>
+    <div class="grid">${cells}</div>
+    <div class="sec"><div class="h">トレー別 使用枚数</div>
+      <table><tr><th>品番</th><th class="r">枚数</th></tr>${trayRows}</table></div>
+    ${fishRows?`<div class="sec"><div class="h">原魚換算（丸で必要な量）</div>
+      <table><tr><th>ネタ</th><th class="r">枚数</th><th class="r">丸kg</th></tr>${fishRows}</table></div>`:''}
+    <div class="foot">歩留まり・1切れg：白身40/15・マグロ70/15・中とろ90/20・真鯛35/15・カンパチ40/15・ヒラメ35/12</div>`;
+  r.scrollIntoView({behavior:'smooth',block:'start'});
+};
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
