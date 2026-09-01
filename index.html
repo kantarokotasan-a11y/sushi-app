@@ -198,7 +198,7 @@ document.getElementById('clearBtn').onclick=()=>{products.forEach(p=>qty[p]=0);
 document.getElementById('goBtn').onclick=()=>{ compute();
   document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'}); };
 window.applyRemoteQty=function(obj){
-  if(!obj||Object.keys(obj).length===0) return;   // まだ何も無ければ端末の値を維持
+  if(!obj||Object.keys(obj).length===0){ if(window.pushAllQty){try{window.pushAllQty(Object.assign({},qty));}catch(e){}} return; } // 空なら自端末の値で作成
   products.forEach(p=>{ const v=(typeof obj[p]==='number')?obj[p]:0; qty[p]=v;
     const el=inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]');
     if(el&&document.activeElement!==el) el.value=v; });
