@@ -1,0 +1,32 @@
+{
+  "name": "寿司 製造計算",
+  "short_name": "寿司製造",
+  "description": "製造数を入れると使用ネタ枚数・トレー枚数・原魚換算kgが出る鮮魚部門用アプリ",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef2f1",
+  "theme_color": "#12303f",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
