@@ -92,7 +92,8 @@
       <h2>本日の魚</h2>
       <div class="frow"><label>白身</label><input id="f-白身" placeholder="例：カワハギ" autocomplete="off"></div>
       <div class="frow"><label>生ネタ</label><input id="f-生ネタ" placeholder="例：カジキ" autocomplete="off"></div>
-      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v8</span></div>
+      <div class="frow" style="align-items:flex-start"><label style="padding-top:8px">メモ</label><textarea id="note" rows="2" placeholder="連絡事項（全端末で共有）" style="flex:1;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:15px;color:var(--ink);background:#fff;font-family:inherit;resize:vertical"></textarea></div>
+      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v9</span></div>
     </div>
     <div id="inputs"></div>
     <div class="barbtns">
@@ -115,7 +116,19 @@ const qty = {}; products.forEach(p=>qty[p]=0);
 const EDITABLE=['白身','生ネタ'];
 const fishLabels={'白身':'','生ネタ':''};
 let lastResult=null;
-const VER='v8';
+let noteVal='';
+try{ noteVal=localStorage.getItem('sushi_note')||''; }catch(e){}
+function saveNoteLocal(){ try{ localStorage.setItem('sushi_note', noteVal); }catch(e){} }
+function setNote(v, fromRemote){
+  noteVal = v;
+  var t=document.getElementById('note');
+  if(t && document.activeElement!==t) t.value=v;
+  saveNoteLocal();
+  if(!fromRemote && window.pushNote){ try{ window.pushNote(v); }catch(e){} }
+  if(fromRemote) pingSync();
+}
+window.applyRemoteNote=function(v){ setNote(typeof v==='string'?v:'', true); };
+const VER='v9';
 
 try{const s=JSON.parse(localStorage.getItem('sushi_qty')||'{}');
     products.forEach(p=>{if(typeof s[p]==='number')qty[p]=s[p];});}catch(e){}
@@ -165,6 +178,8 @@ inputs.addEventListener('change',e=>{const i=e.target.closest('input[data-p]');i
 // 本日の魚 入力
 EDITABLE.forEach(k=>{const el=document.getElementById('f-'+k); el.value=fishLabels[k];
   el.addEventListener('input',e=>setFishLabel(k,e.target.value,false));});
+(function(){ var t=document.getElementById('note'); if(t){ t.value=noteVal;
+  t.addEventListener('input',function(e){ setNote(e.target.value,false); }); } })();
 function setFishLabel(k,val,fromRemote){
   fishLabels[k]=val; saveFish(); renderList(); if(lastResult)renderResult();
   if(fromRemote)syncInputs();
@@ -265,14 +280,17 @@ else{(async()=>{try{
   const {getDatabase,ref,onValue,set,get}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
   const db=getDatabase(initializeApp(firebaseConfig));
   window.pushFishLabel=(k,v)=>set(ref(db,'labels/'+k),v);
+  window.pushNote=(v)=>set(ref(db,'note'),v);
   window.pushQty=(k,v)=>set(ref(db,'qty/'+k),v);
   window.pushAllQty=(o)=>set(ref(db,'qty'),o);
   onValue(ref(db,'labels'),s=>{window.applyRemoteLabels(s.val()||{}); if(window.setSyncState)window.setSyncState(true);},
     ()=>localOnly('同期エラー（端末のみ）'));
   onValue(ref(db,'qty'),s=>{window.applyRemoteQty(s.val()||{});},()=>{});
+  onValue(ref(db,'note'),s=>{window.applyRemoteNote(s.exists()?s.val():'');},()=>{});
   window.refreshNow=async function(){ try{
     const q=await get(ref(db,'qty'));   if(q.exists()) window.applyRemoteQty(q.val());
     const l=await get(ref(db,'labels')); if(l.exists()) window.applyRemoteLabels(l.val());
+    const nt=await get(ref(db,'note')); window.applyRemoteNote(nt.exists()?nt.val():'');
     if(window.setSyncState) window.setSyncState(true);
   }catch(e){} };
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden && window.refreshNow) window.refreshNow(); });
