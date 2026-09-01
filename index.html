@@ -92,7 +92,7 @@
       <h2>本日の魚</h2>
       <div class="frow"><label>白身</label><input id="f-白身" placeholder="例：カワハギ" autocomplete="off"></div>
       <div class="frow"><label>生ネタ</label><input id="f-生ネタ" placeholder="例：カジキ" autocomplete="off"></div>
-      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v6</span></div>
+      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v7</span></div>
     </div>
     <div id="inputs"></div>
     <div class="barbtns">
@@ -115,7 +115,7 @@ const qty = {}; products.forEach(p=>qty[p]=0);
 const EDITABLE=['白身','生ネタ'];
 const fishLabels={'白身':'','生ネタ':''};
 let lastResult=null;
-const VER='v6';
+const VER='v7';
 
 try{const s=JSON.parse(localStorage.getItem('sushi_qty')||'{}');
     products.forEach(p=>{if(typeof s[p]==='number')qty[p]=s[p];});}catch(e){}
@@ -153,11 +153,14 @@ products.forEach(p=>{
     '<button data-p="'+p+'" data-d="1">＋</button></div>';
   inputs.appendChild(row);
 });
-inputs.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  const p=b.dataset.p; qty[p]=Math.max(0,(qty[p]|0)+(+b.dataset.d));
-  inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]').value=qty[p]; saveQty(); pushQty(p); recomputeIfShown();});
-inputs.addEventListener('input',e=>{const i=e.target.closest('input');if(!i)return;
-  let v=parseInt(i.value.replace(/[^0-9]/g,''),10); if(isNaN(v)||v<0)v=0; qty[i.dataset.p]=v; saveQty(); pushQty(i.dataset.p); recomputeIfShown();});
+inputs.addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(!b)return;
+  const p=b.getAttribute('data-p'); const d=parseInt(b.getAttribute('data-d'),10)||0;
+  setQty(p,(qty[p]|0)+d,false);});
+inputs.addEventListener('input',e=>{const i=e.target.closest('input[data-p]');if(!i)return;
+  const p=i.getAttribute('data-p'); let v=parseInt(String(i.value).replace(/[^0-9]/g,''),10); if(isNaN(v)||v<0)v=0;
+  qty[p]=v; saveQty(); pushQty(p); recomputeIfShown(); pingSync();});
+inputs.addEventListener('change',e=>{const i=e.target.closest('input[data-p]');if(!i)return;
+  const p=i.getAttribute('data-p'); setQty(p, i.value, false);});
 
 // 本日の魚 入力
 EDITABLE.forEach(k=>{const el=document.getElementById('f-'+k); el.value=fishLabels[k];
@@ -187,6 +190,15 @@ renderList();
 
 // 計算
 function pushQty(p){ if(window.pushQty){try{window.pushQty(String(products.indexOf(p)),qty[p]);}catch(e){}} }
+function setQty(p,v,fromRemote){
+  v=Math.max(0, parseInt(v,10)||0);
+  qty[p]=v;
+  var el=inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]');
+  if(el && document.activeElement!==el) el.value=v;
+  saveQty();
+  if(!fromRemote){ pushQty(p); }
+  recomputeIfShown(); pingSync();
+}
 function recomputeIfShown(){ if(lastResult) compute(); }
 function compute(){
   const tot={}; neta.forEach(n=>tot[n]=0); let kanSum=0,packSum=0; const trays={};
@@ -195,10 +207,11 @@ function compute(){
     for(const[n,c]of Object.entries(recipe[p]))tot[n]+=c*q;});
   lastResult={tot,kanSum,packSum,trays}; renderResult();
 }
-document.getElementById('clearBtn').onclick=()=>{products.forEach(p=>qty[p]=0);
-  inputs.querySelectorAll('input').forEach(i=>i.value=0); saveQty();
+document.getElementById('clearBtn').onclick=()=>{
+  products.forEach(p=>{ qty[p]=0; });
+  inputs.querySelectorAll('input[data-p]').forEach(i=>i.value=0); saveQty();
   if(window.pushAllQty){try{const z={};products.forEach((p,i)=>z[String(i)]=0);window.pushAllQty(z);}catch(e){}}
-  lastResult=null; document.getElementById('result').innerHTML='';};
+  lastResult=null; document.getElementById('result').innerHTML=''; pingSync();};
 document.getElementById('goBtn').onclick=()=>{ compute();
   document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'}); };
 window.applyRemoteQty=function(obj){
@@ -249,7 +262,7 @@ function localOnly(t){ if(window.setSyncState)window.setSyncState(false); }
 if(!firebaseConfig.databaseURL || firebaseConfig.databaseURL.indexOf('PASTE')>-1){ localOnly(); }
 else{(async()=>{try{
   const {initializeApp}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-  const {getDatabase,ref,onValue,set}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+  const {getDatabase,ref,onValue,set,get}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
   const db=getDatabase(initializeApp(firebaseConfig));
   window.pushFishLabel=(k,v)=>set(ref(db,'labels/'+k),v);
   window.pushQty=(k,v)=>set(ref(db,'qty/'+k),v);
@@ -257,6 +270,15 @@ else{(async()=>{try{
   onValue(ref(db,'labels'),s=>{window.applyRemoteLabels(s.val()||{}); if(window.setSyncState)window.setSyncState(true);},
     ()=>localOnly('同期エラー（端末のみ）'));
   onValue(ref(db,'qty'),s=>{window.applyRemoteQty(s.val()||{});},()=>{});
+  window.refreshNow=async function(){ try{
+    const q=await get(ref(db,'qty'));   if(q.exists()) window.applyRemoteQty(q.val());
+    const l=await get(ref(db,'labels')); if(l.exists()) window.applyRemoteLabels(l.val());
+    if(window.setSyncState) window.setSyncState(true);
+  }catch(e){} };
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden && window.refreshNow) window.refreshNow(); });
+  window.addEventListener('focus',()=>{ window.refreshNow && window.refreshNow(); });
+  window.addEventListener('online',()=>{ window.refreshNow && window.refreshNow(); });
+  window.refreshNow();
 }catch(e){localOnly('同期未接続（端末のみ）');}})();}
 </script>
 <script>
