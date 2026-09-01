@@ -92,7 +92,7 @@
       <h2>本日の魚</h2>
       <div class="frow"><label>白身</label><input id="f-白身" placeholder="例：カワハギ" autocomplete="off"></div>
       <div class="frow"><label>生ネタ</label><input id="f-生ネタ" placeholder="例：カジキ" autocomplete="off"></div>
-      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v4</span></div>
+      <div class="sync"><span class="dot" id="syncDot"></span><span id="syncMsg">端末のみ ・ v5</span></div>
     </div>
     <div id="inputs"></div>
     <div class="barbtns">
@@ -115,7 +115,7 @@ const qty = {}; products.forEach(p=>qty[p]=0);
 const EDITABLE=['白身','生ネタ'];
 const fishLabels={'白身':'','生ネタ':''};
 let lastResult=null;
-const VER='v4';
+const VER='v5';
 
 try{const s=JSON.parse(localStorage.getItem('sushi_qty')||'{}');
     products.forEach(p=>{if(typeof s[p]==='number')qty[p]=s[p];});}catch(e){}
@@ -186,7 +186,7 @@ function renderList(){
 renderList();
 
 // 計算
-function pushQty(p){ if(window.pushQty){try{window.pushQty(p,qty[p]);}catch(e){}} }
+function pushQty(p){ if(window.pushQty){try{window.pushQty(String(products.indexOf(p)),qty[p]);}catch(e){}} }
 function recomputeIfShown(){ if(lastResult) compute(); }
 function compute(){
   const tot={}; neta.forEach(n=>tot[n]=0); let kanSum=0,packSum=0; const trays={};
@@ -197,19 +197,18 @@ function compute(){
 }
 document.getElementById('clearBtn').onclick=()=>{products.forEach(p=>qty[p]=0);
   inputs.querySelectorAll('input').forEach(i=>i.value=0); saveQty();
-  if(window.pushAllQty){try{const z={};products.forEach(p=>z[p]=0);window.pushAllQty(z);}catch(e){}}
+  if(window.pushAllQty){try{const z={};products.forEach((p,i)=>z[String(i)]=0);window.pushAllQty(z);}catch(e){}}
   lastResult=null; document.getElementById('result').innerHTML='';};
 document.getElementById('goBtn').onclick=()=>{ compute();
   document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'}); };
 window.applyRemoteQty=function(obj){
   if(!obj) return;
   let changed=false;
-  products.forEach(p=>{                       // サーバに在るキーだけ反映（無いものは現状維持＝0で潰さない）
-    if(Object.prototype.hasOwnProperty.call(obj,p) && typeof obj[p]==='number'){
-      if(qty[p]!==obj[p]){ qty[p]=obj[p]; changed=true;
-        const el=inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]');
-        if(el&&document.activeElement!==el) el.value=obj[p]; }
-    }
+  products.forEach((p,i)=>{                     // キーは番号。サーバに在る番号だけ反映（無いものは現状維持）
+    const v=obj[String(i)];
+    if(typeof v==='number' && qty[p]!==v){ qty[p]=v; changed=true;
+      const el=inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]');
+      if(el&&document.activeElement!==el) el.value=v; }
   });
   if(changed){ saveQty(); recomputeIfShown(); pingSync(); }
 };
