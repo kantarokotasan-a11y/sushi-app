@@ -151,9 +151,9 @@ products.forEach(p=>{
 });
 inputs.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   const p=b.dataset.p; qty[p]=Math.max(0,(qty[p]|0)+(+b.dataset.d));
-  inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]').value=qty[p]; saveQty();});
+  inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]').value=qty[p]; saveQty(); pushQty(p); recomputeIfShown();});
 inputs.addEventListener('input',e=>{const i=e.target.closest('input');if(!i)return;
-  let v=parseInt(i.value.replace(/[^0-9]/g,''),10); if(isNaN(v)||v<0)v=0; qty[i.dataset.p]=v; saveQty();});
+  let v=parseInt(i.value.replace(/[^0-9]/g,''),10); if(isNaN(v)||v<0)v=0; qty[i.dataset.p]=v; saveQty(); pushQty(i.dataset.p); recomputeIfShown();});
 
 // 本日の魚 入力
 EDITABLE.forEach(k=>{const el=document.getElementById('f-'+k); el.value=fishLabels[k];
@@ -182,16 +182,27 @@ function renderList(){
 renderList();
 
 // 計算
-document.getElementById('clearBtn').onclick=()=>{products.forEach(p=>qty[p]=0);
-  inputs.querySelectorAll('input').forEach(i=>i.value=0); saveQty();
-  lastResult=null; document.getElementById('result').innerHTML='';};
-document.getElementById('goBtn').onclick=()=>{
+function pushQty(p){ if(window.pushQty){try{window.pushQty(p,qty[p]);}catch(e){}} }
+function recomputeIfShown(){ if(lastResult) compute(); }
+function compute(){
   const tot={}; neta.forEach(n=>tot[n]=0); let kanSum=0,packSum=0; const trays={};
   products.forEach(p=>{const q=qty[p]|0; if(!q)return; packSum+=q; kanSum+=q*kanOf(p);
     trays[tray_of[p]]=(trays[tray_of[p]]||0)+q;
     for(const[n,c]of Object.entries(recipe[p]))tot[n]+=c*q;});
   lastResult={tot,kanSum,packSum,trays}; renderResult();
-  document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});
+}
+document.getElementById('clearBtn').onclick=()=>{products.forEach(p=>qty[p]=0);
+  inputs.querySelectorAll('input').forEach(i=>i.value=0); saveQty();
+  if(window.pushAllQty){try{const z={};products.forEach(p=>z[p]=0);window.pushAllQty(z);}catch(e){}}
+  lastResult=null; document.getElementById('result').innerHTML='';};
+document.getElementById('goBtn').onclick=()=>{ compute();
+  document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'}); };
+window.applyRemoteQty=function(obj){
+  if(!obj||Object.keys(obj).length===0) return;   // まだ何も無ければ端末の値を維持
+  products.forEach(p=>{ const v=(typeof obj[p]==='number')?obj[p]:0; qty[p]=v;
+    const el=inputs.querySelector('input[data-p="'+CSS.escape(p)+'"]');
+    if(el&&document.activeElement!==el) el.value=v; });
+  saveQty(); recomputeIfShown();
 };
 function renderResult(){
   const r=document.getElementById('result'); if(!lastResult)return;
@@ -230,14 +241,15 @@ else{(async()=>{try{
   const {getDatabase,ref,onValue,set}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
   const db=getDatabase(initializeApp(firebaseConfig));
   window.pushFishLabel=(k,v)=>set(ref(db,'labels/'+k),v);
+  window.pushQty=(k,v)=>set(ref(db,'qty/'+k),v);
+  window.pushAllQty=(o)=>set(ref(db,'qty'),o);
   onValue(ref(db,'labels'),s=>{window.applyRemoteLabels(s.val()||{});dot.className='dot on';msg.textContent='全端末と同期中';},
     ()=>localOnly('同期エラー（端末のみ）'));
+  onValue(ref(db,'qty'),s=>{window.applyRemoteQty(s.val()||{});},()=>{});
 }catch(e){localOnly('同期未接続（端末のみ）');}})();}
 </script>
 <script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
 </script>
 </body>
 </html>
